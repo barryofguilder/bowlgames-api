@@ -7,6 +7,8 @@ using Microsoft.AspNet.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using bowlgames_api.Models;
+using Microsoft.Data.Entity;
 
 namespace bowlgames_api
 {
@@ -26,6 +28,12 @@ namespace bowlgames_api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var connection = Configuration["Data:ConnectionString"];
+
+            services.AddEntityFramework()
+                .AddSqlite()
+                .AddDbContext<BowlGamesContext>(options => options.UseSqlite(connection));
+
             // Add framework services.
             services.AddMvc();
         }
@@ -35,6 +43,16 @@ namespace bowlgames_api
         {
             loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
+
+            if (env.IsDevelopment())
+            {
+                using (var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>()
+                    .CreateScope())
+                {
+                    serviceScope.ServiceProvider.GetService<BowlGamesContext>().Database.Migrate();
+                    serviceScope.ServiceProvider.GetService<BowlGamesContext>().EnsureSeedData();
+                }
+            }
 
             app.UseIISPlatformHandler();
 
